@@ -5,26 +5,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const updateSummary = require('../utils/updateSummary');
+const uploadToPinata = require('../utils/uploadPinata');
 
-
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = path.join(__dirname, '..', 'uploads');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ storage });
+const upload = multer({ dest: 'temp/' }); // temporary disk storage
 
 router.post('/', upload.single('photo'), async (req, res) => {
   const {
-    user_id,    
+    user_id,
     distance_km,
     time_minutes,
     location_text,
@@ -32,7 +19,18 @@ router.post('/', upload.single('photo'), async (req, res) => {
     longitude
   } = req.body;
 
-  const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+  let photoUrl = null;
+
+  if (req.file) {
+    const tempPath = path.join(__dirname, '..', req.file.path);
+    try {
+      photoUrl = await uploadToPinata(tempPath);
+    } catch (err) {
+      return res.status(500).json({ error: 'Photo upload to Pinata failed' });
+    } finally {
+      fs.unlinkSync(tempPath); // clean up
+    }
+  }
 
   try {
     const result = await pool.query(
@@ -41,8 +39,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
        RETURNING *`,
       [user_id, distance_km, time_minutes, location_text, latitude || null, longitude || null, photoUrl]
     );
-    
-    //upd summary
+
     await updateSummary(user_id);
 
     res.status(201).json({ message: 'Run saved', run: result.rows[0] });
@@ -73,7 +70,7 @@ router.get('/:id', async (req, res) => {
       location: run.location_text,
       latitude: run.latitude,
       longitude: run.longitude,
-      photo_url: run.photo_url ? `http://localhost:3000${run.photo_url}` : null,
+      photo_url: run.photo_url || null,
       map_link: (run.latitude && run.longitude)
         ? `https://www.openstreetmap.org/?mlat=${run.latitude}&mlon=${run.longitude}#map=15/${run.latitude}/${run.longitude}`
         : null
@@ -83,7 +80,6 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: 'Could not fetch run' });
   }
 });
-
 
 router.get('/', async (req, res) => {
   const { user_id } = req.query;
@@ -104,7 +100,7 @@ router.get('/', async (req, res) => {
       distance_km: run.distance_km,
       time_minutes: run.time_minutes,
       pace_min_per_km: run.pace_min_per_km,
-      photo_url: run.photo_url ? `http://localhost:3000${run.photo_url}` : null,
+      photo_url: run.photo_url || null,
       map_link: (run.latitude && run.longitude)
         ? `https://www.openstreetmap.org/?mlat=${run.latitude}&mlon=${run.longitude}#map=15/${run.latitude}/${run.longitude}`
         : null
@@ -116,6 +112,5 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Could not fetch runs' });
   }
 });
-
 
 module.exports = router;
