@@ -7,7 +7,7 @@ const fs = require('fs');
 const updateSummary = require('../utils/updateSummary');
 const uploadToPinata = require('../utils/uploadPinata');
 
-const upload = multer({ dest: 'temp/' }); // temporary disk storage
+const upload = multer({ dest: 'temp/' }); // temp instead of upload file
 
 router.post('/', upload.single('photo'), async (req, res) => {
   const {
@@ -28,7 +28,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
     } catch (err) {
       return res.status(500).json({ error: 'Photo upload to Pinata failed' });
     } finally {
-      fs.unlinkSync(tempPath); // clean up
+      fs.unlinkSync(tempPath);
     }
   }
 
@@ -71,7 +71,9 @@ router.get('/:id', async (req, res) => {
       latitude: run.latitude,
       longitude: run.longitude,
       photo_url: run.photo_url || null,
-      map_link: `https://www.openstreetmap.org/?mlat=${run.latitude}&mlon=${run.longitude}#map=16/${run.latitude}/${run.longitude}`
+      map_link: (run.latitude && run.longitude)
+        ? `https://www.openstreetmap.org/?mlat=${run.latitude}&mlon=${run.longitude}&zoom=16`
+        : null
     });
   } catch (err) {
     console.error(err);
