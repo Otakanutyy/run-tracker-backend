@@ -72,8 +72,12 @@ router.get('/:id', async (req, res) => {
       longitude: run.longitude,
       photo_url: run.photo_url || null,
       map_link: (run.latitude && run.longitude)
-        ? `https://www.openstreetmap.org/?mlat=${run.latitude}&mlon=${run.longitude}&zoom=16`
-        : null
+      ? `https://www.openstreetmap.org/export/embed.html` +
+        `?layer=mapnik` +
+        `&marker=${run.latitude},${run.longitude}` +
+        `&bbox=${run.longitude - 0.005},${run.latitude - 0.003},` +
+              `${run.longitude + 0.005},${run.latitude + 0.003}`
+      : null
     });
   } catch (err) {
     console.error(err);
