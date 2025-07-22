@@ -72,8 +72,8 @@ router.get('/:id', async (req, res) => {
       longitude: run.longitude,
       photo_url: run.photo_url || null,
       map_link: (run.latitude && run.longitude)
-        ? `https://www.openstreetmap.org/?mlat=${run.latitude}&mlon=${run.longitude}#map=15/${run.latitude}/${run.longitude}`
-        : null
+      ? `https://www.openstreetmap.org/?mlat=${run.latitude}&mlon=${run.longitude}&zoom=16&layers=M&marker=${run.latitude},${run.longitude}`
+      : null
     });
   } catch (err) {
     console.error(err);
